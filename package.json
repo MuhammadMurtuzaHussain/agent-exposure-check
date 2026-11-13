@@ -1,0 +1,12 @@
+{
+  "name": "agent-exposure-check",
+  "version": "1.0.0",
+  "description": "Private, in-browser self-assessment of AI agent exposure to prompt injection, data leakage and tool misuse, mapped to OWASP LLM Top 10, ISO 42001, ISO 27001, NIS2 and the EU AI Act.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Muhammad Murtuza Hussain",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "python3 -m http.server 8080"
+  }
+}

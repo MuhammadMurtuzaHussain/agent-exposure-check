@@ -1,0 +1,148 @@
+// Scoring engine. Pure functions, no DOM, no network: safe to run in a browser or in Node.
+
+import { QUESTIONS, SEVERITY, TRIFECTA, FRAMEWORK_LABELS } from './questions.js';
+
+export const ANSWERS = ['yes', 'partly', 'no', 'unknown'];
+
+const SEVERITY_ORDER = ['low', 'medium', 'high', 'critical'];
+
+function downgrade(severity) {
+  const i = SEVERITY_ORDER.indexOf(severity);
+  return SEVERITY_ORDER[Math.max(0, i - 1)];
+}
+
+// A question applies unless it depends on an exposure that was answered "no".
+export function isApplicable(question, answers) {
+  if (!question.appliesIf) return true;
+  return answers[question.appliesIf] !== 'no';
+}
+
+// How risky an answer is, from 0 (fine) to 1 (full finding).
+export function riskFactor(question, answer) {
+  if (answer === undefined || answer === null || answer === '') return null; // not answered yet
+  if (answer === 'unknown') return 1;
+  if (answer === 'partly') return 0.5;
+  const risky = question.kind === 'exposure' ? 'yes' : 'no';
+  return answer === risky ? 1 : 0;
+}
+
+function legPresent(answer) {
+  return answer === 'yes' || answer === 'partly' || answer === 'unknown';
+}
+
+export function evaluate(answers = {}) {
+  const findings = [];
+  let maxWeight = 0;
+  let lostWeight = 0;
+  let answered = 0;
+  let applicable = 0;
+
+  for (const q of QUESTIONS) {
+    if (!isApplicable(q, answers)) continue;
+    applicable += 1;
+    const base = SEVERITY[q.severity].weight;
+    maxWeight += base;
+
+    const answer = answers[q.id];
+    const factor = riskFactor(q, answer);
+    if (factor === null) continue;
+    answered += 1;
+    if (factor === 0) continue;
+
+    lostWeight += base * factor;
+    findings.push({
+      id: q.id,
+      title: q.finding,
+      severity: answer === 'partly' ? downgrade(q.severity) : q.severity,
+      answer,
+      why: q.why,
+      fix: q.fix,
+      maps: q.maps,
+    });
+  }
+
+  // Combination risk: only counted once every leg has been answered.
+  const legAnswers = TRIFECTA.legs.map((id) => answers[id]);
+  maxWeight += SEVERITY[TRIFECTA.severity].weight;
+  const trifecta = legAnswers.every(legPresent);
+  if (trifecta) {
+    const confirmed = legAnswers.every((a) => a === 'yes');
+    lostWeight += SEVERITY[TRIFECTA.severity].weight * (confirmed ? 1 : 0.5);
+    findings.push({
+      id: TRIFECTA.id,
+      title: TRIFECTA.finding,
+      severity: confirmed ? 'critical' : 'high',
+      answer: confirmed ? 'yes' : 'partly',
+      why: TRIFECTA.why,
+      fix: TRIFECTA.fix,
+      maps: TRIFECTA.maps,
+    });
+  }
+
+  findings.sort((a, b) => SEVERITY[b.severity].rank - SEVERITY[a.severity].rank);
+
+  const score = maxWeight === 0 ? 100 : Math.round(100 * (1 - lostWeight / maxWeight));
+  return {
+    score,
+    band: band(score),
+    findings,
+    trifecta,
+    answered,
+    applicable,
+    complete: answered === applicable,
+  };
+}
+
+export function band(score) {
+  if (score >= 80) return { id: 'low', label: 'Low exposure' };
+  if (score >= 60) return { id: 'moderate', label: 'Moderate exposure' };
+  if (score >= 40) return { id: 'high', label: 'High exposure' };
+  return { id: 'severe', label: 'Severe exposure' };
+}
+
+function mdEscape(text) {
+  return String(text).replace(/([\\`*_[\]<>|#])/g, '\\$1');
+}
+
+export function toMarkdown(result, meta = {}) {
+  const name = meta.agentName ? mdEscape(meta.agentName) : 'Unnamed agent';
+  const date = meta.date || new Date().toISOString().slice(0, 10);
+  const lines = [
+    `# AI Agent Exposure Check: ${name}`,
+    '',
+    `**Date:** ${date}  `,
+    `**Score:** ${result.score}/100 (${result.band.label})  `,
+    `**Questions answered:** ${result.answered} of ${result.applicable}`,
+    '',
+  ];
+  if (meta.purpose) lines.push(`**Purpose:** ${mdEscape(meta.purpose)}`, '');
+  if (!result.complete) lines.push('> Some questions are unanswered, so this score is provisional.', '');
+
+  const counts = SEVERITY_ORDER.slice().reverse()
+    .map((s) => [s, result.findings.filter((f) => f.severity === s).length])
+    .filter(([, n]) => n > 0)
+    .map(([s, n]) => `${n} ${SEVERITY[s].label.toLowerCase()}`);
+  lines.push('## Summary', '', result.findings.length ? `${result.findings.length} findings: ${counts.join(', ')}.` : 'No findings from the answers given.', '');
+
+  if (result.findings.length) {
+    lines.push('## Findings', '');
+    result.findings.forEach((f, i) => {
+      lines.push(`### ${i + 1}. ${f.title} (${SEVERITY[f.severity].label})`, '');
+      if (f.answer === 'unknown') lines.push('_Answered "unknown": treat as a gap until verified._', '');
+      lines.push(`**Why it matters:** ${f.why}`, '', `**What to do:** ${f.fix}`, '');
+      const refs = Object.entries(f.maps)
+        .filter(([, v]) => v && v.length)
+        .map(([k, v]) => `- ${FRAMEWORK_LABELS[k]}: ${v.join('; ')}`);
+      if (refs.length) lines.push('**References:**', ...refs, '');
+    });
+  }
+
+  lines.push(
+    '---',
+    '',
+    'Self-assessment generated by AI Agent Exposure Check. It reflects the answers given, not a security test. ',
+    'Framework references show where to look first; they are not a compliance verdict.',
+    '',
+  );
+  return lines.join('\n');
+}

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Agent Exposure Check</title>
+  <meta name="description" content="A free, private self-assessment of how exposed an AI agent, copilot or chatbot is to prompt injection, data leakage and tool misuse, mapped to OWASP, ISO 42001, ISO 27001, NIS2 and the EU AI Act.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <p class="kicker">Free · open source · nothing leaves your browser</p>
+      <h1>AI Agent Exposure Check</h1>
+      <p class="lede">Answer 19 short questions about one AI agent, copilot or chatbot. You'll get an exposure score, findings ranked by severity, and where each one maps in the OWASP LLM Top 10, ISO/IEC 42001, ISO/IEC 27001, NIS2 and the EU AI Act.</p>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <form id="check" class="questions" novalidate>
+      <fieldset class="meta">
+        <legend>About the agent</legend>
+        <label>Agent name <input id="agentName" type="text" autocomplete="off" placeholder="e.g. Customer support assistant"></label>
+        <label>What it does <input id="purpose" type="text" autocomplete="off" placeholder="e.g. Answers customer emails and updates the CRM"></label>
+      </fieldset>
+      <div id="sections"></div>
+    </form>
+
+    <aside class="results" aria-live="polite">
+      <div class="score-card" id="scoreCard">
+        <p class="score-label">Exposure score</p>
+        <p class="score"><span id="score">–</span><span class="of">/100</span></p>
+        <p class="band" id="band">Answer the questions to see your score</p>
+        <div class="meter" aria-hidden="true"><div id="meterFill"></div></div>
+        <p class="progress" id="progress"></p>
+        <div class="actions">
+          <button type="button" id="download">Download report (.md)</button>
+          <button type="button" id="print" class="secondary">Print / save as PDF</button>
+          <button type="button" id="reset" class="link">Start again</button>
+        </div>
+      </div>
+      <div id="trifectaAlert" class="trifecta" hidden></div>
+      <h2 class="findings-title">Findings</h2>
+      <ol id="findings" class="findings"></ol>
+    </aside>
+  </main>
+
+  <footer class="wrap site-footer">
+    <p>This is a self-assessment, not a security test. It reflects the answers you give. Framework references show where a reviewer would look first; they are not a compliance verdict.</p>
+    <p>MIT licensed · <a href="https://github.com/MuhammadMurtuzaHussain/agent-exposure-check">Source on GitHub</a></p>
+  </footer>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
