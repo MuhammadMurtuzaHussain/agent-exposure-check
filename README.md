@@ -1,5 +1,7 @@
 # AI Agent Exposure Check
 
+**Try it: [muhammadmurtuzahussain.github.io/agent-exposure-check](https://muhammadmurtuzahussain.github.io/agent-exposure-check/)**
+
 A free, open-source self-assessment that shows how exposed an AI agent, copilot or chatbot is to **prompt injection, data leakage and tool misuse**, and where each weakness maps in the frameworks organisations are already working towards:
 
 - **OWASP Top 10 for LLM Applications (2025)**
